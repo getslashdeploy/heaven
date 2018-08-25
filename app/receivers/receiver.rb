@@ -7,7 +7,7 @@ class Receiver
   def initialize(event, guid, data)
     @guid  = guid
     @event = event
-    @data  = data
+    @data  = parse_data(data)
   end
 
   def self.perform(event, guid, data)
@@ -56,5 +56,17 @@ class Receiver
     else
       Rails.logger.info "Unhandled event type, #{event}."
     end
+  end
+
+  private
+
+  def parse_data(data)
+    # `payload` parameter is JSON string, so try to parse it.
+    # See: https://developer.github.com/v3/repos/deployments/#parameters
+    if data && data.key?("deployment") && data["deployment"].key?("payload")
+      payload = JSON.parse(data["deployment"]["payload"]) rescue {}
+      data["deployment"]["payload"] = payload
+    end
+    data
   end
 end
