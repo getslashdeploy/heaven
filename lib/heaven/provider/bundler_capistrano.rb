@@ -60,7 +60,7 @@ module Heaven
       private
 
       def ignored_groups
-        bundle_definition.groups - [:heaven, :deployment]
+        bundle_definition.groups - [:default, :heaven, :deployment]
       end
 
       def bundle_definition
