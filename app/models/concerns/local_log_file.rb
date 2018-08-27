@@ -4,8 +4,12 @@ module LocalLogFile
   include DeploymentTimeout
 
   def working_directory
-    @working_directory ||= "/tmp/" + \
-      Digest::SHA1.hexdigest([name_with_owner, github_token].join)
+    @working_directory ||= begin
+      dir = "/tmp/" + \
+        Digest::SHA1.hexdigest([name_with_owner, github_token].join)
+      FileUtils.mkdir_p dir
+      dir
+    end
   end
 
   def checkout_directory
