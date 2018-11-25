@@ -2,6 +2,7 @@ module Heaven
   # Top-level module for Providers.
   module Provider
     # The Amazon elastic beanstalk provider.
+    # Example: https://docs.amazonaws.cn/en_us/sdk-for-ruby/v3/developer-guide/eb-example-update-ruby-on-rails-app.html
     class ElasticBeanstalk < DefaultProvider
       def initialize(guid, payload)
         super
@@ -9,7 +10,7 @@ module Heaven
       end
 
       def archive_name
-        "#{name}-#{sha}.zip"
+        "heaven-#{sha}.zip"
       end
 
       def archive_link
@@ -17,7 +18,7 @@ module Heaven
       end
 
       def archive_zip
-        archive_link.gsub(/legacy\.tar\.gz/, "deploy.zip")
+        archive_link.gsub(/legacy\.tar\.gz/, "legacy.zip")
       end
 
       def archive_path
@@ -31,14 +32,15 @@ module Heaven
       def execute
         return execute_and_log(["/usr/bin/true"]) if Rails.env.test?
 
+        log_stdout "Beanstalk: Configuring S3 bucket: #{bucket_name}\n"
         configure_s3_bucket
-        log_stdout "Beanstalk: Fetching source code from GitHub:\n"
+        log_stdout "Beanstalk: Fetching source code from GitHub\n"
         fetch_source_code
-        log_stdout "Beanstalk: Uploading source code: #{archive_path}\n"
-        upload = upload_source_code(archive_name, archive_path)
+        log_stdout "Beanstalk: Uploading source code: #{archive_path} => #{bucket_key}\n"
+        upload_source_code
         log_stdout "Beanstalk: Creating application: #{app_name}\n"
-        app_version = create_app_version(upload.key)
-        log_stdout "Beanstalk: Updating application: #{app_name}-#{environment}.\n"
+        app_version = create_app_version
+        log_stdout "Beanstalk: Updating application environment: #{environment_name}\n"
         app_update  = update_app(app_version)
         status.output =  "#{base_url}?region=#{custom_aws_region}#/environment"
         status.output << "/dashboard?applicationName=#{app_name}&environmentId"
@@ -55,35 +57,49 @@ module Heaven
         status.success!
       end
 
-      def upload_source_code(key, file)
-        obj = s3.buckets[bucket_name].objects[key]
-        obj.write(Pathname.new(file))
+      def upload_source_code
+        obj = s3.buckets[bucket_name].objects[bucket_key]
+        obj.write(Pathname.new(archive_path))
         obj
       end
 
-      def bucket_name
-        ENV["BEANSTALK_S3_BUCKET"] ||
-          "heaven-elasticbeanstalk-builds-#{custom_aws_region}"
+      private
+
+      def app_version
+        @app_version ||= begin
+          app_versions = eb.describe_application_versions({ application_name: app_name })
+          app_versions.application_versions[0]
+        end
       end
 
-      private
+      def bucket_name
+        app_version.source_bundle.s3_bucket
+      end
+
+      def bucket_key
+        [app_name, archive_name].join("/")
+      end
 
       def app_name
         custom_payload_config && custom_payload_config["app_name"]
       end
 
-      def configure_s3_bucket
-        return if s3.buckets.map(&:name).include?(bucket_name)
-        s3.buckets.create(bucket_name)
+      def environment_name
+        "#{app_name}-#{environment}"
       end
 
-      def create_app_version(s3_key)
+      def configure_s3_bucket
+        return if s3.buckets.map(&:name).include?(bucket_name)
+        eb.create_storage_location
+      end
+
+      def create_app_version
         options = {
           :application_name  => app_name,
           :version_label     => version_label,
           :description       => description,
           :source_bundle     => {
-            :s3_key          => s3_key,
+            :s3_key          => bucket_key,
             :s3_bucket       => bucket_name
           },
           :auto_create_application => false
@@ -93,7 +109,7 @@ module Heaven
 
       def update_app(version)
         options = {
-          :environment_name  => environment,
+          :environment_name  => environment_name,
           :version_label     => version[:application_version][:version_label]
         }
         eb.update_environment(options)

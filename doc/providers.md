@@ -30,9 +30,9 @@ The heroku provider uses the [build and release API][13]. It requests an [archiv
 
 ### Required Configuration
 
-| Environmental Variables |                                                 |
-|-------------------------|-------------------------------------------------|
-| HEROKU_API_KEY          | A [direct authorization][17] token from heroku  |
+| Environmental Variables |                                                |
+| ----------------------- | ---------------------------------------------- |
+| HEROKU_API_KEY          | A [direct authorization][17] token from heroku |
 
 ### Flow
 
@@ -80,18 +80,17 @@ Capistrano gives you a distributed task management system over ssh. The heaven p
 
 ### Options
 
-* environment
-* branch
-* task
+- environment
+- branch
+- task
 
 ### Required Configuration
 
-| Environmental Variables |                                                 |
-|-------------------------|-------------------------------------------------|
-| DEPLOYMENT_PRIVATE_KEY  | An ssh private key used to login to your remote servers via SSH. Put it all on one line with    `\n` in it.|
+| Environmental Variables |                                                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| DEPLOYMENT_PRIVATE_KEY  | An ssh private key used to login to your remote servers via SSH. Put it all on one line with `\n` in it. |
 
 You need to configure your `:repository` option in your Capfile to use an https remote. The git interactions will always be over https and the ssh interactions will only involve accessing your servers.
-
 
 ### Capfile
 
@@ -222,6 +221,22 @@ With [Elastic beanstalk][21] you can quickly deploy and manage applications in
 the AWS cloud without worrying about the infrastructure that runs those
 applications.
 
+To deploy with Elastic Beanstalk provider, make sure you have a running environment and the configured IAM account (see `BEANSTALK_ACCESS_KEY_ID` and `BEANSTALK_SECRET_ACCESS_KEY`) has [AWSElasticBeanstalkFullAccess](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/AWSHowTo.iam.managed-policies.html) policy attached. This provider will then upload versions to the [default](http://docs.amazonaws.cn/en_us/elasticbeanstalk/latest/dg/AWSHowTo.S3.html) S3 bucket, but prefix versions with `heaven-`.
+
+Then, configure your [payload](https://developer.github.com/v3/repos/deployments/#create-a-deployment) with:
+
+```
+{
+  "aws": {
+    "region": "<AWS region> (default "us-east-1")"
+  },
+  "config": {
+    "provider": "elastic_beanstalk",
+    "app_name": "<EB app name>"
+  }
+}
+```
+
 ### Options
 
 * environment
@@ -229,11 +244,10 @@ applications.
 
 ### Required Configuration
 
-| Environmental Variables        |                                                 |
-|--------------------------------|-------------------------------------------------|
-| BEANSTALK_S3_BUCKET            | The bucket to store s3 archives in.             |
-| BEANSTALK_ACCESS_KEY_ID        | The AWS access key id for API interaction with Amazon. |
-| BEANSTALK_SECRET_ACCESS_KEY    | The AWS secret access key for API interaction with Amazon. |
+| Environmental Variables     |                                                            |
+| --------------------------- | ---------------------------------------------------------- |
+| BEANSTALK_ACCESS_KEY_ID     | The AWS access key id for API interaction with Amazon.     |
+| BEANSTALK_SECRET_ACCESS_KEY | The AWS secret access key for API interaction with Amazon. |
 
 ### Optional Configuration
 
